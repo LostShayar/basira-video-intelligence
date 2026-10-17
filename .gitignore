@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets
+.env
+
+# Models and weights (never commit)
+*.pt
+*.pth
+*.onnx
+*.engine
+*.safetensors
+models/
+
+# Video and generated media (never commit)
+*.mp4
+*.avi
+*.mov
+*.mkv
+data/*
+!data/.gitkeep
+runs/
+outputs/
+snapshots/
+clips/
+
+# Keep README screenshots and demo GIFs
+!assets/**
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
