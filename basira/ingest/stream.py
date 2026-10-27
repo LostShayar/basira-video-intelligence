@@ -45,6 +45,7 @@ class CameraStream:
         self.source_fps = 0.0
         self.connected = False
         self.finished = False
+        self._announced = False
         self._fps_window: list[float] = []
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name=f"cam-{camera.id}", daemon=True)
@@ -85,7 +86,9 @@ class CameraStream:
             self.connected = True
             self.source_fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
             frame_period = 1.0 / self.source_fps
-            log.info("[%s] connected (%.1f fps)", self.camera.id, self.source_fps)
+            if not self._announced:  # files reopen on every loop; log only once
+                log.info("[%s] connected (%.1f fps)", self.camera.id, self.source_fps)
+                self._announced = True
             next_due = time.perf_counter()
 
             while not self._stop.is_set():
