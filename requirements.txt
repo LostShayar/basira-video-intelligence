@@ -2,6 +2,7 @@
 opencv-python>=4.9
 ultralytics>=8.3
 supervision>=0.25
+trackers>=2.6       # ByteTrack (moved out of supervision)
 numpy>=1.26
 pyyaml>=6.0
 python-dotenv>=1.0
