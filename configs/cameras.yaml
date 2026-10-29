@@ -1,5 +1,10 @@
 # Basira camera and analytics configuration.
 # Every threshold lives here, never hard-coded in Python.
+#
+# Zones and lines use FRACTIONS of the frame, not pixels:
+#   [0.0, 0.0] = top-left corner, [1.0, 1.0] = bottom-right corner.
+# So the same config works for any video resolution.
+# To draw your own: python scripts/draw_zones.py --camera cam_01
 
 model:
   weights: yolo11n.pt          # downloaded automatically by Ultralytics, gitignored
@@ -15,34 +20,35 @@ cameras:
     name: Plaza North
     source: data/plaza_north.mp4   # later: rtsp://...
     zones:
-      - id: restricted_01
-        type: restricted
-        polygon: [[820, 410], [1180, 410], [1180, 700], [820, 700]]
-      - id: plaza_01
+      - id: crossing
         type: crowd
-        polygon: [[100, 300], [800, 300], [800, 900], [100, 900]]
+        polygon: [[0.0, 0.45], [1.0, 0.45], [1.0, 1.0], [0.0, 1.0]]
         max_people: 25
     lines:
-      - id: entrance
-        start: [200, 600]
-        end: [1000, 600]
+      - id: centre_line            # counts people walking left/right across the road
+        start: [0.5, 0.40]
+        end: [0.5, 1.0]
 
   - id: cam_02
     name: Main Road
     source: data/main_road.mp4
     zones: []
     lines:
-      - id: road_count
-        start: [0, 540]
-        end: [1920, 540]
+      - id: road_count             # counts vehicles driving towards / away from camera
+        start: [0.0, 0.80]
+        end: [1.0, 0.80]
 
   - id: cam_03
     name: Station Entrance
     source: data/station.mp4
     zones:
-      - id: loiter_01
+      - id: tracks                 # nobody should be on the tracks
+        type: restricted
+        classes: [person]          # only people trigger this zone (trains don't)
+        polygon: [[0.31, 0.55], [0.35, 0.55], [0.78, 1.0], [0.43, 1.0]]
+      - id: platform
         type: loitering
-        polygon: [[300, 300], [900, 300], [900, 800], [300, 800]]
+        polygon: [[0.0, 0.55], [0.26, 0.55], [0.26, 1.0], [0.0, 1.0]]
     lines: []
 
 analytics:
