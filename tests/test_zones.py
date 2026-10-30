@@ -38,8 +38,8 @@ def test_restricted_entry_fires_once_per_entry():
     events = zone.update("cam", person(7, 200, 200), NAMES, now=1)             # steps in
     assert len(events) == 1 and events[0].track_id == 7 and events[0].type == "zone_entry"
     assert zone.update("cam", person(7, 210, 200), NAMES, now=2) == []         # still inside: no repeat
-    zone.update("cam", person(7, 50, 200), NAMES, now=3)                        # steps out
-    zone.update("cam", person(7, 50, 200), NAMES, now=6)                        # gone > 2 s
+    for t in (3, 4, 5, 6):                                                      # out for 3 s, 4 frames
+        zone.update("cam", person(7, 50, 200), NAMES, now=t)
     assert len(zone.update("cam", person(7, 200, 200), NAMES, now=7)) == 1     # re-enters: fires again
 
 
