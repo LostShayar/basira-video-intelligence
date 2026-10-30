@@ -22,8 +22,9 @@ cameras:
     zones:
       - id: crossing
         type: crowd
+        classes: [person]
         polygon: [[0.0, 0.45], [1.0, 0.45], [1.0, 1.0], [0.0, 1.0]]
-        max_people: 25
+        max_people: 25             # alert when more than 25 people are inside
     lines:
       - id: centre_line            # counts people walking left/right across the road
         start: [0.5, 0.40]
@@ -48,13 +49,15 @@ cameras:
         polygon: [[0.31, 0.55], [0.35, 0.55], [0.78, 1.0], [0.43, 1.0]]
       - id: platform
         type: loitering
+        classes: [person]
+        dwell_seconds: 10          # demo value; real sites usually use 30-120 s
         polygon: [[0.0, 0.55], [0.26, 0.55], [0.26, 1.0], [0.0, 1.0]]
     lines: []
 
 analytics:
   loitering:
-    threshold_seconds: 30
+    threshold_seconds: 30          # default for loitering zones; a zone can override it
   events:
-    cooldown_seconds: 20
+    cooldown_seconds: 20           # minimum gap between repeated crowding alerts
     clip_seconds_before: 5
     clip_seconds_after: 5

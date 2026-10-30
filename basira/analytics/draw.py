@@ -40,6 +40,8 @@ def draw_analytics(image: np.ndarray, analytics: CameraAnalytics) -> np.ndarray:
         text = f"{zone.zone_id}: {zone.count}"
         if zone.max_people:
             text += f"/{zone.max_people}"
+        if zone.type == "loitering" and zone.count:
+            text += f"  longest {zone.longest_dwell:.0f}s"
         _label(out, text, (int(x) + 6, int(y) + int(40 * max(0.6, out.shape[1] / 1280))), colour)
 
     for line in analytics.lines:

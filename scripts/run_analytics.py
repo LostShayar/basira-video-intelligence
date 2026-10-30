@@ -1,4 +1,4 @@
-"""Day 4 demo: detection + tracking + zones and line crossing on every camera.
+"""Live demo: detection, tracking, zones, lines, loitering and crowd alerts, privacy blur.
 
 Usage (from the repo folder, with .venv active):
     python scripts/run_analytics.py                    # live window, q / Esc / X to quit
@@ -27,7 +27,7 @@ from basira.ingest.tiling import tile_frames  # noqa: E402
 from basira.perception.detector import Detector  # noqa: E402
 from basira.pipeline import Pipeline  # noqa: E402
 
-WINDOW = "Basira - zones and lines (q or Esc to quit)"
+WINDOW = "Basira - live analytics (q or Esc to quit)"
 ALERT_SECONDS = 4  # how long a red alert banner stays on a camera
 
 
@@ -46,7 +46,8 @@ def main() -> None:
     m = cfg["model"]
     detector = Detector(m["weights"], m.get("classes"), m.get("confidence", 0.35),
                         image_size=args.imgsz, device=args.device)
-    pipeline = Pipeline(cameras, detector)
+    pipeline = Pipeline(cameras, detector, analytics_cfg=cfg.get("analytics", {}),
+                        blur_faces=cfg.get("privacy", {}).get("blur_faces", True))
 
     last_seen = {c.id: -1 for c in cameras}
     shown = {c.id: None for c in cameras}
@@ -70,8 +71,8 @@ def main() -> None:
                 shown[cid], counts[cid] = result.image, result.counts
                 for event in result.events:
                     print(time.strftime("%H:%M:%S"), event)
-                    if event.type == "zone_entry":
-                        alerts[cid] = (f"ALERT: {event.class_name} #{event.track_id} entered {event.zone_id}", time.time())
+                    if event.is_alert:
+                        alerts[cid] = (event.headline(), time.time())
 
             loop_times = (loop_times + [time.time() - t0])[-30:]
             fps = len(loop_times) / sum(loop_times) if sum(loop_times) else 0.0
