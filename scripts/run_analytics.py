@@ -55,6 +55,7 @@ def main() -> None:
     alerts: dict[str, tuple[str, float]] = {}
     loop_times: list[float] = []
     writer = None
+    warmed_up = 0
     start = time.time()
 
     with StreamManager(cameras) as manager:
@@ -87,11 +88,17 @@ def main() -> None:
                 labels.append(f"{cid} | {names[cid]} | {fps:.1f} fps | {summary}")
             grid = tile_frames(tiles, labels)
 
-            if args.record:
+            warmed_up += 1
+            if args.record and warmed_up > 25:
                 if writer is None:
+                    # save at the speed we actually process (measured after the model warms
+                    # up), so the video plays back in real time
+                    recent = loop_times[-10:]
+                    rec_fps = max(1.0, round(len(recent) / sum(recent), 1))
                     Path(args.record).parent.mkdir(parents=True, exist_ok=True)
                     h, w = grid.shape[:2]
-                    writer = cv2.VideoWriter(args.record, cv2.VideoWriter_fourcc(*"mp4v"), 10, (w, h))
+                    writer = cv2.VideoWriter(args.record, cv2.VideoWriter_fourcc(*"mp4v"), rec_fps, (w, h))
+                    print(f"Recording to {args.record} at {rec_fps} fps")
                 writer.write(grid)
 
             if not args.headless:

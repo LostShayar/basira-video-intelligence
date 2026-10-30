@@ -2,13 +2,16 @@
 
 > Multi-camera video intelligence: detection, tracking and zone analytics, with VLM-verified alerts, natural-language video search and an agentic operator copilot.
 
-!\[status](https://img.shields.io/badge/status-in%20development-orange)
-!\[python](https://img.shields.io/badge/python-3.11-blue)
-!\[ci](https://github.com/LostShayar/basira-video-intelligence/actions/workflows/ci.yml/badge.svg)
+![status](https://img.shields.io/badge/release-v0.1%20perception-blue)
+![python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
+![tests](https://img.shields.io/badge/tests-35%20passing-brightgreen)
+[![CI](https://github.com/LostShayar/basira-video-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/LostShayar/basira-video-intelligence/actions/workflows/ci.yml)
 
 *Basira* (بصيرة) is Arabic for insight or clear sight.
 
-\---
+![Basira demo: three cameras with detection, tracking, zones and alerts](assets/demo/basira-demo.gif)
+
+---
 
 ## Why this project
 
@@ -16,140 +19,139 @@ Most video analytics demos stop at drawing boxes. Real operations teams have a d
 
 Basira is built in three layers:
 
-1. **Perception** — fast, deterministic computer vision that turns video into structured events.
-2. **Intelligence** — an AI layer that verifies alerts, searches footage in plain language and explains incidents.
-3. **Product** — an API, a dashboard and an operator copilot, packaged to run with one command.
+1. **Perception** — fast, deterministic computer vision that turns video into structured events. **(v0.1, done)**
+2. **Intelligence** — an AI layer that verifies alerts, searches footage in plain language and explains incidents. *(next)*
+3. **Product** — an API, a dashboard and an operator copilot, packaged to run with one command. *(next)*
 
 The core rule: **computer vision produces the facts; the AI layer judges and explains them.** The model never invents what the cameras did not see.
+
+## What works today (v0.1)
+
+| Capability | How it works |
+| --- | --- |
+| Multi-camera ingestion | One reader thread per camera; a latest-frame buffer drops stale frames so latency stays flat; files play at real speed and loop; RTSP streams reconnect |
+| Detection | Ultralytics YOLO, one shared model, all cameras sent as a single batch; classes and confidence set in config |
+| Tracking | A separate ByteTrack tracker per camera, so every person and vehicle keeps a stable ID |
+| Restricted zones | Alert once per entry, using each object's feet position; per-zone class filters (e.g. only people on the tracks) |
+| Loitering | Alert when someone stays in a zone longer than its dwell time, once per visit |
+| Crowding | Alert when a zone holds more people than its limit, with a cooldown |
+| Line counting | In/out counts per direction; each track counted once, jitter on the line ignored |
+| Privacy | Head area of every person blurred before frames are shown or recorded; no face recognition or identity matching |
+| Config-driven | Cameras, zones, lines and thresholds in one YAML file, with coordinates as fractions of the frame so they fit any resolution |
+
+| Restricted zone and line counting | Loitering alert with privacy blur |
+| --- | --- |
+| ![zones](assets/screenshots/day4-zones.png) | ![alerts](assets/screenshots/day5-alerts.png) |
+
+## Results
+
+Measured on a laptop CPU (no GPU), 3 camera streams at 720p, YOLO11n at 640 px:
+
+| Metric | Value |
+| --- | --- |
+| Ingestion only, 3 streams | ~25 fps per camera |
+| Full pipeline (detect, track, analytics, draw) | ~7 fps across 3 cameras |
+| Unit tests | 35 passing, run in CI on every pull request |
+| Line counting, ~4 min live run | plaza 86 in / 43 out, road 28 in / 93 out |
+| Loitering | alert fired once per person after the 10 s dwell threshold |
+
+*Coming in v0.3:* alert precision with and without VLM verification, measured on hand-labelled alerts.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    subgraph P\[Perception]
-        A\[Ingest<br/>3-4 streams, frame queues] --> B\[Detect + track<br/>YOLO + ByteTrack]
-        B --> C\[Analytics<br/>zones, lines, dwell, density]
-        C --> D\[Event engine<br/>blurred snapshots, clips]
+    subgraph P[Perception - v0.1]
+        A[Ingest<br/>threads + latest-frame buffers] --> B[Detect + track<br/>YOLO + ByteTrack]
+        B --> C[Analytics<br/>zones, lines, loitering, crowding]
+        C --> D[Privacy blur + display]
     end
-    D -->|writes events| S\[(PostgreSQL + pgvector<br/>events, tracks, clips, embeddings)]
-    subgraph I\[Intelligence]
-        V\[VLM verifier<br/>confirms or rejects alerts]
-        Q\[Semantic search<br/>text query to matching clips]
-        G\[Operator copilot<br/>LangGraph agent + MCP tools]
+    C -->|events| S[(PostgreSQL + pgvector<br/>planned)]
+    subgraph I[Intelligence - planned]
+        V[VLM verifier<br/>confirms or rejects alerts]
+        Q[Semantic search<br/>text query to clips]
+        G[Operator copilot<br/>LangGraph agent + MCP tools]
     end
     S <--> V
     S <--> Q
     S <--> G
-    I --> F\[FastAPI]
-    F --> H\[Dashboard<br/>tiles, feed, search, chat]
+    I --> F[FastAPI + dashboard]
 ```
 
 More detail: [docs/architecture.md](docs/architecture.md)
 
-## Features and progress
+## Quick start
 
-**v0.1 — Perception**
+Requires Python 3.11 or 3.12.
 
-* \[ ] Multi-stream ingestion (3–4 cameras at once, bounded frame queues)
-* \[ ] Person and vehicle detection (Ultralytics YOLO)
-* \[ ] Multi-object tracking (ByteTrack)
-* \[ ] Polygon zones and line-crossing counts
-* \[ ] Dwell-time loitering and crowd density per zone
-* \[ ] Face blurring on everything stored
+```bash
+git clone https://github.com/LostShayar/basira-video-intelligence.git
+cd basira-video-intelligence
+python -m venv .venv
+source .venv/bin/activate          # Windows (Git Bash): source .venv/Scripts/activate
+pip install -r requirements.txt -r requirements-dev.txt
+pytest -q                          # 35 tests
+```
 
-**v0.2 — Events and product**
+Put three short videos in `data/` named as in `configs/cameras.yaml` (`plaza_north.mp4`, `main_road.mp4`, `station.mp4`), then:
 
-* \[ ] Event engine with cooldown, snapshots and short clips
-* \[ ] PostgreSQL storage
-* \[ ] FastAPI endpoints
-* \[ ] Streamlit dashboard
-* \[ ] One-command Docker Compose stack
+```bash
+python scripts/run_analytics.py                 # live view: q or Esc to quit
+python scripts/draw_zones.py --camera cam_03    # click to draw a zone, prints coordinates for the config
+```
 
-**v0.3 — Intelligence**
+The YOLO weights (~6 MB) download automatically on the first run.
 
-* \[ ] VLM alert verification, with measured precision before and after
-* \[ ] Natural-language video search (CLIP + pgvector)
-* \[ ] Incident reports written only from stored facts
+| Script | What it shows |
+| --- | --- |
+| `scripts/run_ingest.py` | Multi-camera playback only |
+| `scripts/run_tracking.py` | Detection and tracking |
+| `scripts/run_analytics.py` | Full pipeline with zones, lines, alerts and privacy blur |
+| `scripts/draw_zones.py` | Tool to draw zones and lines |
+| `scripts/make_gif.py` | Turn a recording into a README GIF |
 
-**v1.0 — Operator copilot**
+## Roadmap
 
-* \[ ] LangGraph agent with tools over events and footage
-* \[ ] Same tools exposed as an MCP server
-* \[ ] Guardrails: read-only database role, checked SQL, logged tool calls
-
-## Results
-
-*Filled in as the project is built.*
-
-|Metric|Value|
-|-|-|
-|Throughput (4 streams, CPU / GPU)|—|
-|Alert precision without VLM verification|—|
-|Alert precision with VLM verification|—|
-|Median verification latency|—|
-
-## Tech stack
-
-|Layer|Tools|
-|-|-|
-|Perception|Python, OpenCV, Ultralytics YOLO, ByteTrack, Supervision|
-|Storage|PostgreSQL + pgvector|
-|Intelligence|Vision-language model (hosted or local via Ollama), CLIP, LangGraph, MCP|
-|Product|FastAPI, Streamlit, Docker Compose, Pytest, GitHub Actions|
-
-## Privacy by design
-
-* Faces are blurred in every stored snapshot and clip.
-* No face recognition or identity matching.
-* Retention limits are set in `configs/cameras.yaml`.
-* Only public research datasets are used; their licences are listed below.
+- [x] **v0.1 Perception** — ingestion, detection, tracking, zones, lines, loitering, crowding, privacy blur
+- [ ] **v0.2 Events and product** — event engine with snapshots and clips, PostgreSQL, FastAPI, dashboard, Docker Compose
+- [ ] **v0.3 Intelligence** — VLM alert verification with measured precision, natural-language video search
+- [ ] **v1.0 Operator copilot** — LangGraph agent over events and footage, exposed as an MCP server, with guardrails
 
 ## Project structure
 
 ```
 basira-video-intelligence/
 ├── basira/
-│   ├── ingest/          # multi-stream readers, frame queues
-│   ├── perception/      # detector, tracker, face blur
-│   ├── analytics/       # zones, lines, dwell, density, speed
-│   ├── events/          # event engine, snapshots, clips
-│   ├── intelligence/    # VLM verifier, embeddings, reports
-│   ├── agent/           # LangGraph copilot, MCP server
-│   └── storage/         # database models
-├── api/                 # FastAPI app
-├── dashboard/           # Streamlit app
-├── configs/             # cameras, zones, thresholds
-├── eval/                # labelled alerts, benchmarks
-├── tests/
-└── docs/
+│   ├── config.py        # loads configs/cameras.yaml
+│   ├── pipeline.py      # detect -> track -> analytics -> privacy -> draw
+│   ├── ingest/          # stream.py, buffer.py, tiling.py
+│   ├── perception/      # detector.py, tracker.py, annotate.py, privacy.py
+│   ├── analytics/       # zones.py, draw.py
+│   ├── events/          # planned: event engine, snapshots, clips
+│   ├── intelligence/    # planned: VLM verifier, embeddings, reports
+│   ├── agent/           # planned: copilot, MCP server
+│   └── storage/         # planned: database models
+├── configs/cameras.yaml # cameras, zones, lines, thresholds
+├── scripts/             # runnable demos and tools
+├── tests/               # 35 unit tests
+├── docs/
+└── .github/workflows/   # CI
 ```
 
-## Quick start
+## Privacy by design
 
-*Coming in v0.2 — the goal is:*
-
-```bash
-git clone https://github.com/LostShayar/basira-video-intelligence.git
-cd basira-video-intelligence
-cp .env.example .env
-docker compose up
-```
-
-## Datasets
-
-|Dataset|Used for|Licence|
-|-|-|-|
-|MOT17 / MOT20|Crowd and pedestrian scenes|Check before use|
-|UA-DETRAC|Traffic scenes|Check before use|
-|VIRAT|Outdoor surveillance events|Check before use|
-
-Video files and model weights are not stored in this repo. See `scripts/download\_assets.sh`.
+- The head area of every detected person is blurred before frames are shown or recorded.
+- No face recognition or identity matching, now or planned.
+- Retention limits are set in `configs/cameras.yaml`.
+- Only public sample footage is used for development.
 
 ## Known limitations
 
-*Documented honestly as they are found.*
+- Runs at ~7 fps across 3 cameras on CPU; a GPU or an exported ONNX/TensorRT model would be needed for more cameras.
+- Zone placement is manual per camera (a click tool helps).
+- Head-area blur is approximate: it covers the top of each person's box, so unusual poses can leave part of a face visible.
+- Tested on recorded public clips, not live city cameras.
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
